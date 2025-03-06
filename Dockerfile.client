@@ -1,0 +1,30 @@
+# Stage 1: Build the binary
+FROM golang:1.24-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Install dependencies
+RUN apk add --no-cache git
+
+# Copy Go modules and download dependencies first (for better layer caching)
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the Go application with optimizations
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /bin/service ./cmd/client
+
+# Stage 2: Create minimal scratch-based image
+FROM scratch
+
+# Set a non-root user for security
+USER 1001
+
+# Copy binary from builder stage
+COPY --from=builder /bin/service /bin/service
+
+# Run the binary
+ENTRYPOINT ["/bin/service"]
