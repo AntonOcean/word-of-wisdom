@@ -1,7 +1,9 @@
 package app_test
 
 import (
+	"bufio"
 	"errors"
+	"github.com/stretchr/testify/assert"
 	"net"
 	"sync"
 	"testing"
@@ -27,15 +29,25 @@ func (m *MockHandlerWithError) HandleConnection(_ app.Conn) error {
 	return errors.New("mock handler error")
 }
 
+// MockHandler simulates request handling.
+type MockHandlerWithPanic struct{}
+
+func (m *MockHandlerWithPanic) HandleConnection(_ app.Conn) error {
+	// Simulate processing delay
+	panic("hello panic")
+
+}
+
 // TestServerLifecycle tests server start and graceful shutdown.
 func TestServerLifecycle(t *testing.T) {
 	port := "localhost:8081"
 
 	cfg := config.Config{
-		Port:              port,
-		MaxConnections:    100,
-		ConnectionTimeout: 5 * time.Second,
-		ShutdownTimeout:   5 * time.Second,
+		Port:                port,
+		MaxConnections:      100,
+		ConnectionTimeout:   5 * time.Second,
+		ShutdownTimeout:     5 * time.Second,
+		RateLimitEvery100MS: 5,
 	}
 
 	server := app.NewServer(cfg, logger.GetLogger(), &MockHandler{})
@@ -67,10 +79,11 @@ func TestConnectionHandling(t *testing.T) {
 	port := "localhost:8082"
 
 	cfg := config.Config{
-		Port:              port,
-		MaxConnections:    100,
-		ConnectionTimeout: 5 * time.Second,
-		ShutdownTimeout:   5 * time.Second,
+		Port:                port,
+		MaxConnections:      100,
+		ConnectionTimeout:   5 * time.Second,
+		ShutdownTimeout:     5 * time.Second,
+		RateLimitEvery100MS: 5,
 	}
 
 	server := app.NewServer(cfg, logger.GetLogger(), &MockHandler{})
@@ -94,10 +107,11 @@ func TestConnectionLimit(t *testing.T) {
 	maxConnections := 2
 
 	cfg := config.Config{
-		Port:              port,
-		MaxConnections:    maxConnections,
-		ConnectionTimeout: 5 * time.Second,
-		ShutdownTimeout:   5 * time.Second,
+		Port:                port,
+		MaxConnections:      maxConnections,
+		ConnectionTimeout:   5 * time.Second,
+		ShutdownTimeout:     5 * time.Second,
+		RateLimitEvery100MS: 5,
 	}
 
 	server := app.NewServer(cfg, logger.GetLogger(), &MockHandler{})
@@ -143,10 +157,11 @@ func TestGracefulShutdown(t *testing.T) {
 	shutdownTimeout := 5 * time.Second
 
 	cfg := config.Config{
-		Port:              port,
-		MaxConnections:    100,
-		ConnectionTimeout: 5 * time.Second,
-		ShutdownTimeout:   shutdownTimeout,
+		Port:                port,
+		MaxConnections:      100,
+		ConnectionTimeout:   5 * time.Second,
+		ShutdownTimeout:     shutdownTimeout,
+		RateLimitEvery100MS: 5,
 	}
 
 	server := app.NewServer(cfg, logger.GetLogger(), &MockHandler{})
@@ -187,10 +202,11 @@ func TestHandlerError(t *testing.T) {
 	port := "localhost:8087"
 
 	cfg := config.Config{
-		Port:              port,
-		MaxConnections:    100,
-		ConnectionTimeout: 5 * time.Second,
-		ShutdownTimeout:   5 * time.Second,
+		Port:                port,
+		MaxConnections:      100,
+		ConnectionTimeout:   5 * time.Second,
+		ShutdownTimeout:     5 * time.Second,
+		RateLimitEvery100MS: 5,
 	}
 
 	server := app.NewServer(cfg, logger.GetLogger(), &MockHandlerWithError{})
@@ -212,10 +228,11 @@ func TestConnectionRejectionOnShutdown(t *testing.T) {
 	port := "localhost:8086"
 
 	cfg := config.Config{
-		Port:              port,
-		MaxConnections:    100,
-		ConnectionTimeout: 5 * time.Second,
-		ShutdownTimeout:   5 * time.Second,
+		Port:                port,
+		MaxConnections:      100,
+		ConnectionTimeout:   5 * time.Second,
+		ShutdownTimeout:     5 * time.Second,
+		RateLimitEvery100MS: 5,
 	}
 
 	server := app.NewServer(cfg, logger.GetLogger(), &MockHandler{})
@@ -241,10 +258,11 @@ func TestMultipleClients(t *testing.T) {
 	port := "localhost:8085"
 
 	cfg := config.Config{
-		Port:              port,
-		MaxConnections:    100,
-		ConnectionTimeout: 5 * time.Second,
-		ShutdownTimeout:   5 * time.Second,
+		Port:                port,
+		MaxConnections:      100,
+		ConnectionTimeout:   5 * time.Second,
+		ShutdownTimeout:     5 * time.Second,
+		RateLimitEvery100MS: 5,
 	}
 
 	server := app.NewServer(cfg, logger.GetLogger(), &MockHandler{})
@@ -271,4 +289,74 @@ func TestMultipleClients(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+// TestPanicRecovery ensures that panics are caught and logged
+func TestPanicRecovery(t *testing.T) {
+	port := "localhost:8088"
+
+	cfg := config.Config{
+		Port:                port,
+		MaxConnections:      100,
+		ConnectionTimeout:   5 * time.Second,
+		ShutdownTimeout:     5 * time.Second,
+		RateLimitEvery100MS: 5,
+	}
+
+	server := app.NewServer(cfg, logger.GetLogger(), &MockHandlerWithPanic{})
+
+	go server.Start()
+	defer server.Shutdown()
+
+	time.Sleep(100 * time.Millisecond) // Give server time to start
+
+	conn, err := net.Dial("tcp", port)
+	assert.NoError(t, err, "Client should be able to connect")
+	defer conn.Close()
+
+	response, err := bufio.NewReader(conn).ReadString('\n')
+	assert.NoError(t, err, "Should receive response from server")
+	assert.Equal(t, app.MsgOnErrInternal, response, "Server should handle panics gracefully")
+}
+
+// TestRateLimiting ensures that rate limiting works as expected
+func TestRateLimiting(t *testing.T) {
+	port := "localhost:8089"
+
+	cfg := config.Config{
+		Port:                port,
+		MaxConnections:      100,
+		ConnectionTimeout:   5 * time.Second,
+		ShutdownTimeout:     5 * time.Second,
+		RateLimitEvery100MS: 2,
+	}
+
+	server := app.NewServer(cfg, logger.GetLogger(), &MockHandler{})
+
+	go server.Start()
+	defer server.Shutdown()
+
+	time.Sleep(100 * time.Millisecond) // Give server time to start
+
+	// Simulate a client exceeding the rate limit
+	conn1, _ := net.Dial("tcp", port)
+	conn2, _ := net.Dial("tcp", port)
+	conn3, _ := net.Dial("tcp", port)
+
+	// Read responses
+	buf1 := bufio.NewReader(conn1)
+	buf2 := bufio.NewReader(conn2)
+	buf3 := bufio.NewReader(conn3)
+
+	res1, _ := buf1.ReadString('\n')
+	res2, _ := buf2.ReadString('\n')
+	res3, _ := buf3.ReadString('\n')
+
+	assert.Equal(t, "", res1)
+	assert.Equal(t, "", res2)
+	assert.Equal(t, app.MsgOnManyReq, res3)
+
+	conn1.Close()
+	conn2.Close()
+	conn3.Close()
 }
