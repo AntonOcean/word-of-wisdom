@@ -3,7 +3,8 @@ package config
 import "time"
 
 type Config struct {
-	Port            string
-	MaxConnections  int
-	ShutdownTimeout time.Duration
+	Port              string
+	MaxConnections    int
+	ConnectionTimeout time.Duration
+	ShutdownTimeout   time.Duration
 }

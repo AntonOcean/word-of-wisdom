@@ -99,7 +99,12 @@ func (s *Server) handleClient(conn net.Conn) {
 	defer conn.Close()
 	defer func() { <-s.semaphore }() // Release the slot after processing
 
-	err := s.handler.HandleConnection(conn) // User-defined function to process client requests
+	err := conn.SetDeadline(time.Now().Add(s.config.ConnectionTimeout))
+	if err != nil {
+		s.logger.Errorf("Failed to set deadline: %v", err)
+	}
+
+	err = s.handler.HandleConnection(conn) // User-defined function to process client requests
 	if err != nil {
 		s.logger.Errorf("Error: %v", err)
 	}

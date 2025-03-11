@@ -11,9 +11,10 @@ import (
 
 func main() {
 	cfg := config.Config{
-		Port:            ":9000",
-		MaxConnections:  100,
-		ShutdownTimeout: 5 * time.Second,
+		Port:              ":9000",
+		MaxConnections:    100,
+		ConnectionTimeout: 2 * time.Second,
+		ShutdownTimeout:   5 * time.Second,
 	}
 
 	s := app.NewServer(

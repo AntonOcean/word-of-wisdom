@@ -32,9 +32,10 @@ func TestServerLifecycle(t *testing.T) {
 	port := "localhost:8081"
 
 	cfg := config.Config{
-		Port:            port,
-		MaxConnections:  100,
-		ShutdownTimeout: 5 * time.Second,
+		Port:              port,
+		MaxConnections:    100,
+		ConnectionTimeout: 5 * time.Second,
+		ShutdownTimeout:   5 * time.Second,
 	}
 
 	server := app.NewServer(cfg, logger.GetLogger(), &MockHandler{})
@@ -66,9 +67,10 @@ func TestConnectionHandling(t *testing.T) {
 	port := "localhost:8082"
 
 	cfg := config.Config{
-		Port:            port,
-		MaxConnections:  100,
-		ShutdownTimeout: 5 * time.Second,
+		Port:              port,
+		MaxConnections:    100,
+		ConnectionTimeout: 5 * time.Second,
+		ShutdownTimeout:   5 * time.Second,
 	}
 
 	server := app.NewServer(cfg, logger.GetLogger(), &MockHandler{})
@@ -92,9 +94,10 @@ func TestConnectionLimit(t *testing.T) {
 	maxConnections := 2
 
 	cfg := config.Config{
-		Port:            port,
-		MaxConnections:  maxConnections,
-		ShutdownTimeout: 5 * time.Second,
+		Port:              port,
+		MaxConnections:    maxConnections,
+		ConnectionTimeout: 5 * time.Second,
+		ShutdownTimeout:   5 * time.Second,
 	}
 
 	server := app.NewServer(cfg, logger.GetLogger(), &MockHandler{})
@@ -140,9 +143,10 @@ func TestGracefulShutdown(t *testing.T) {
 	shutdownTimeout := 5 * time.Second
 
 	cfg := config.Config{
-		Port:            port,
-		MaxConnections:  100,
-		ShutdownTimeout: shutdownTimeout,
+		Port:              port,
+		MaxConnections:    100,
+		ConnectionTimeout: 5 * time.Second,
+		ShutdownTimeout:   shutdownTimeout,
 	}
 
 	server := app.NewServer(cfg, logger.GetLogger(), &MockHandler{})
@@ -183,9 +187,10 @@ func TestHandlerError(t *testing.T) {
 	port := "localhost:8087"
 
 	cfg := config.Config{
-		Port:            port,
-		MaxConnections:  100,
-		ShutdownTimeout: 5 * time.Second,
+		Port:              port,
+		MaxConnections:    100,
+		ConnectionTimeout: 5 * time.Second,
+		ShutdownTimeout:   5 * time.Second,
 	}
 
 	server := app.NewServer(cfg, logger.GetLogger(), &MockHandlerWithError{})
@@ -207,9 +212,10 @@ func TestConnectionRejectionOnShutdown(t *testing.T) {
 	port := "localhost:8086"
 
 	cfg := config.Config{
-		Port:            port,
-		MaxConnections:  100,
-		ShutdownTimeout: 5 * time.Second,
+		Port:              port,
+		MaxConnections:    100,
+		ConnectionTimeout: 5 * time.Second,
+		ShutdownTimeout:   5 * time.Second,
 	}
 
 	server := app.NewServer(cfg, logger.GetLogger(), &MockHandler{})
@@ -235,9 +241,10 @@ func TestMultipleClients(t *testing.T) {
 	port := "localhost:8085"
 
 	cfg := config.Config{
-		Port:            port,
-		MaxConnections:  100,
-		ShutdownTimeout: 5 * time.Second,
+		Port:              port,
+		MaxConnections:    100,
+		ConnectionTimeout: 5 * time.Second,
+		ShutdownTimeout:   5 * time.Second,
 	}
 
 	server := app.NewServer(cfg, logger.GetLogger(), &MockHandler{})
