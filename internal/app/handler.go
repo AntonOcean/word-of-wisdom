@@ -3,6 +3,7 @@ package app
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"strings"
 	"word-of-wisdom/pkg/protocol"
 )
@@ -65,7 +66,11 @@ func (h *H) HandleConnection(conn Conn) error {
 
 // readClientResponse reads the client’s PoW solution from the connection
 func readClientResponse(conn Conn) (string, error) {
-	reader := bufio.NewReader(conn)
+	const maxReadSize = 1024
+
+	limitedReader := io.LimitedReader{R: conn, N: maxReadSize}
+
+	reader := bufio.NewReader(&limitedReader)
 	solution, err := reader.ReadString('\n')
 	if err != nil {
 		return "", err
