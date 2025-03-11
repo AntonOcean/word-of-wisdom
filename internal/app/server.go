@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/time/rate"
 	"net"
 	"os"
 	"os/signal"
@@ -24,6 +25,7 @@ type Server struct {
 	config       config.Config
 	handler      Handler
 	logger       *logrus.Logger
+	limiterMap   sync.Map
 }
 
 // NewServer creates and initializes a new server instance
@@ -93,11 +95,32 @@ func (s *Server) acceptConnections() {
 	}
 }
 
+// getLimiterForIP get limiter per IP
+func (s *Server) getLimiterForIP(ip string) *rate.Limiter {
+	if limiter, exists := s.limiterMap.Load(ip); exists {
+		return limiter.(*rate.Limiter)
+	}
+
+	limiter := rate.NewLimiter(rate.Every(100*time.Millisecond), 5)
+	s.limiterMap.Store(ip, limiter)
+	return limiter
+}
+
 // handleClient processes a single client connection and ensures proper resource release
 func (s *Server) handleClient(conn net.Conn) {
 	defer s.wg.Done()
 	defer conn.Close()
 	defer func() { <-s.semaphore }() // Release the slot after processing
+
+	// Get IP client
+	ip := conn.RemoteAddr().(*net.TCPAddr).IP.String()
+
+	limiter := s.getLimiterForIP(ip)
+
+	if !limiter.Allow() {
+		_, _ = conn.Write([]byte("Too many requests. Please try again later.\n"))
+		return
+	}
 
 	err := conn.SetDeadline(time.Now().Add(s.config.ConnectionTimeout))
 	if err != nil {
