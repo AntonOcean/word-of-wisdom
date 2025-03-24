@@ -31,6 +31,6 @@ func (p *SHA256PoW) GenerateChallenge() string {
 // ValidateChallenge checks if the provided solution meets the required difficulty.
 func (p *SHA256PoW) ValidateChallenge(challenge, solution string) bool {
 	hash := sha256.Sum256([]byte(challenge + solution))
-	hashStr := hex.EncodeToString(hash[:])
+	hashStr := hex.EncodeToString(hash[:]) // TODO improve it with binary
 	return strings.HasPrefix(hashStr, strings.Repeat("0", p.difficulty))
 }

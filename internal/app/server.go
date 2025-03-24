@@ -112,13 +112,13 @@ func (s *Server) handleClient(conn net.Conn) {
 	ip := conn.RemoteAddr().(*net.TCPAddr).IP.String()
 	limiter := s.getLimiterForIP(ip)
 
+	if err := conn.SetDeadline(time.Now().Add(s.config.ConnectionTimeout)); err != nil {
+		s.logger.Errorf("Failed to set deadline for client %s: %v", ip, err)
+	}
+
 	if !limiter.Allow() {
 		_, _ = conn.Write([]byte(MsgOnManyReq))
 		return
-	}
-
-	if err := conn.SetDeadline(time.Now().Add(s.config.ConnectionTimeout)); err != nil {
-		s.logger.Errorf("Failed to set deadline for client %s: %v", ip, err)
 	}
 
 	if err := s.handler.HandleConnection(conn); err != nil {
